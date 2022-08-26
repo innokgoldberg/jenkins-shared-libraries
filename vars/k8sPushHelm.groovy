@@ -1,8 +1,8 @@
-def call(project, chartVersion, museumAddr, replaceTag = false, failIfExists = false) {
-    withCredentials([usernamePassword(credentialsId: "chartmuseum", usernameVariable: "USER", passwordVariable: "PASS")]) {
+def call(project, chartVersion, museumAddr,museumIp,configuration, secrets, replaceTag = false, failIfExists = false) {
+    withVault([configuration: configuration, vaultSecrets: secrets]) {
         if (failIfExists) {
             yaml = readYaml file: "helm/${project}/Chart.yaml"
-            out = sh returnStdout: true, script: "curl -u $USER:$PASS http://${museumAddr}/api/charts/${project}/${yaml.version}"
+            out = sh returnStdout: true, script: "curl -u ${env.CHARTMUSEUM_USER}:${env.CHARTMUSEUM_PASSWORD} http://${museumAddr}/api/charts/${project}/${yaml.version}"
             if (!out.contains("error")) {
                 error "Did you forget to increment the Chart version?"
             }
@@ -18,6 +18,8 @@ def call(project, chartVersion, museumAddr, replaceTag = false, failIfExists = f
         if (chartVersion == "") {
             packageName = sh(returnStdout: true, script: "ls ${project}*").trim()
         }
-        sh """curl -u $USER:$PASS --data-binary "@${packageName}" http://${museumAddr}/api/charts"""
+        sh """curl -u ${env.CHARTMUSEUM_USER}:${env.CHARTMUSEUM_PASSWORD} \
+          --data-binary "@${packageName}" \
+           -H \"Host: ${museumAddr}\" http://${museumIp}/api/charts"""
     }
 }
